@@ -358,7 +358,27 @@ public class Server extends Listener {
         // Check if player is a bot
         if (currentPlayer instanceof Bot) {
             Bot bot = (Bot) currentPlayer;
-            // logica voor bot hier
+            Card card = bot.chooseCard(playedDeck.getLast());
+
+
+            if (card == null) {
+                // Take card
+                Card randomCard = deck.getFirst();
+                bot.getCards().add(randomCard);
+                deck.remove(randomCard);
+            }
+            else {
+                // Play card
+                bot.getCards().remove(card);
+                playedDeck.add(card);
+            }
+
+            // Send the last card packet
+            Packets.Response cardPacket = new Packets.Response();
+            cardPacket.response = String.format("lastcard_%s", playedDeck.getLast().toString());
+            server.sendToAllTCP(cardPacket);
+
+            nextTurn();
         }
 
         // Send players packet

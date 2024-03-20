@@ -3,6 +3,8 @@ package xyz.niceduckdev.network;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import xyz.niceduckdev.Game;
+import xyz.niceduckdev.save.Save;
+import xyz.niceduckdev.save.SaveData;
 import xyz.niceduckdev.ui.Page;
 import xyz.niceduckdev.ui.Window;
 import xyz.niceduckdev.utilities.State;
@@ -26,6 +28,7 @@ public class Client extends Listener {
             client.connect(5000, address, port, port);
 
             Game.log(String.format("Connecting to %s:%d", address, port), Game.LogType.Client);
+            Save.saveData(new SaveData(address, port));
         }
         catch (Exception exception) {
             disconnect();
