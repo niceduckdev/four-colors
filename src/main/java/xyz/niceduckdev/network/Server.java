@@ -40,8 +40,7 @@ public class Server extends Listener {
             Game.log(String.format("Starting server on %d", port), Game.LogType.Server);
         }
         catch (Exception exception) {
-            // Game.log(String.format("Error starting server on %d", port), Game.LogType.Server);
-            exception.printStackTrace();
+            Game.log(String.format("Error starting server on %d", port), Game.LogType.Server);
         }
     }
 
