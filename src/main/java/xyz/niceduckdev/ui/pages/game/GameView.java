@@ -2,8 +2,6 @@ package xyz.niceduckdev.ui.pages.game;
 
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import xyz.niceduckdev.Player;
 import xyz.niceduckdev.cards.Card;
@@ -27,7 +25,7 @@ public class GameView extends View {
     private Button uno;
     private enum Orientation { Row, Column }
     private Row row;
-
+    private Column column;
     private GridPane colors;
 
     @Override
@@ -49,13 +47,12 @@ public class GameView extends View {
         );
         row.alignCenter();
 
-        Column column = new Column(
+        column = new Column(
             row,
             buttons
         );
 
         column.alignCenter();
-        setCenter(column);
 
         colors = new GridPane();
         colors.add(new Button("Red"), 0, 0);
@@ -63,6 +60,8 @@ public class GameView extends View {
         colors.add(new Button("Yellow"), 0, 1);
         colors.add(new Button("Green"), 1, 1);
         colors.setAlignment(Pos.CENTER);
+
+        setCenter(column);
     }
 
     @Override
@@ -179,21 +178,13 @@ public class GameView extends View {
         return deck;
     }
 
-    public Button getPlayedDeck() {
-        return playedDeck;
-    }
-
-//    public Button getNextButton() {
-//        return next;
-//    }
-
     public void toggleChooseColor() {
-        if (getCenter().equals(colors)) {
-            setCenter(row);
+        if (getCenter().equals(column)) {
+            setCenter(colors);
             return;
         }
 
-        setCenter(colors);
+        setCenter(column);
     }
 
     public GridPane getColors() {

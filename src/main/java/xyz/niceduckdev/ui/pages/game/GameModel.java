@@ -12,10 +12,8 @@ import java.util.ArrayList;
 
 public class GameModel extends Model {
     private Player player;
-    private Player currentPlayer;
     private String lastCard;
     private ArrayList<Player> players = new ArrayList<>();
-    private String currentColorPath = "";
 
     @Override
     public void receive(Connection connection, Object object) {
@@ -36,7 +34,7 @@ public class GameModel extends Model {
                 }
                 break;
             case Packets.Request packet:
-                if (packet.request.startsWith("choosecolor")) {
+                if (packet.request.equals("choosecolor")) {
                     Platform.runLater(presenter::chooseColor);
                 }
                 else if (packet.request.startsWith("color_")) {
@@ -108,13 +106,5 @@ public class GameModel extends Model {
 
     public ArrayList<Player> getPlayers() {
         return players;
-    }
-
-    public String getCurrentColorPath() {
-        return currentColorPath;
-    }
-
-    public void setCurrentColorPath(String path) {
-        currentColorPath = path;
     }
 }

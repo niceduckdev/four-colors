@@ -2,7 +2,6 @@ package xyz.niceduckdev.ui.pages.lobby;
 
 import com.esotericsoftware.kryonet.Connection;
 import javafx.application.Platform;
-import xyz.niceduckdev.Game;
 import xyz.niceduckdev.Player;
 import xyz.niceduckdev.network.Client;
 import xyz.niceduckdev.ui.layout.mvp.Model;
@@ -27,7 +26,7 @@ public class LobbyModel extends Model {
 
     public void remove(int id) {
         Packets.Request packet = new Packets.Request();
-        packet.request = String.format("remove_%d_%d", player.getId(), id);
+        packet.request = String.format("removebot_%d_%d", player.getId(), id);
         Client.send(packet);
     }
 

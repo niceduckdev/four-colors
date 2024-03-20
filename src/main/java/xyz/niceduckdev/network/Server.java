@@ -13,14 +13,16 @@ import java.util.ArrayList;
 public class Server extends Listener {
     private static com.esotericsoftware.kryonet.Server server;
     private static final int maxPlayers = 4;
+
     private static Player host;
     private static ArrayList<Player> players = new ArrayList<>();
     private static Player currentPlayer;
+
     private static CardColor currentColor;
     private static State state = State.Lobby;
 
     private static Deck deck, playedDeck;
-    private int cardsToTake;
+    private int cardAmount;
     private boolean reverse;
 
     public static void create(int port) {
@@ -33,17 +35,20 @@ public class Server extends Listener {
             server.start();
             server.addListener(new Server());
 
-            Game.log(String.format("Starting server on %d", port), Game.LogType.Server);
-            currentPlayer = players.getFirst();
             state = State.Lobby;
+
+            Game.log(String.format("Starting server on %d", port), Game.LogType.Server);
         }
         catch (Exception exception) {
-            Game.log(String.format("Error starting server on %d", port), Game.LogType.Server);
+            // Game.log(String.format("Error starting server on %d", port), Game.LogType.Server);
+            exception.printStackTrace();
         }
     }
+
     public static boolean isRunning() {
         return (server != null);
     }
+
     public static void close() {
         server.close();
         server = null;
@@ -53,7 +58,6 @@ public class Server extends Listener {
         // Check if there are more than 4 players
         if (players.size() >= maxPlayers || state == State.Game) {
             connection.close();
-
             return;
         }
 
@@ -68,34 +72,55 @@ public class Server extends Listener {
         playerPacket.player = player;
         server.sendToTCP(player.getId(), playerPacket);
 
-        // Send players packet
-        sendPlayers();
+        // Update players
+        updatePlayers();
 
         // Select host player
         host = players.getFirst();
+
+        // Set current turn
+        if (players.size() == 1) {
+            currentPlayer = players.getFirst();
+        }
     }
+
     public void disconnected(Connection connection) {
         // Remove player
         Player player = Players.get(connection.getID(), players);
         players.remove(player);
+        connection.close();
 
-        // Send players packet
-        sendPlayers();
+        // Update players
+        updatePlayers();
 
         // Select new host player if needed
-        if (players.isEmpty()) {
-            return;
+        if (!players.isEmpty()) {
+            host = players.getFirst();
         }
-        host = players.getFirst();
-
-        connection.close();
     }
+
     public void received(Connection connection, Object object) {
         if (object instanceof Packets.Request packet) {
-            if (packet.request.startsWith("start_")) {
-                // Check if player that wants to start is host player
-                int id = Integer.parseInt(packet.request.substring(6));
-                if (id != host.getId()) {
+            if (packet.request.startsWith("username_")) {
+                String[] data = packet.request.split("_");
+                int id = Integer.parseInt(data[1]);
+                Player player = Players.get(id, players);
+                String username = data[2];
+
+                // Do nothing is the username was not set
+                if (username.equals("null") || player == null) {
+                    return;
+                }
+
+                // Apply username and update players
+                player.setUsername(username);
+                updatePlayers();
+            }
+            else if (packet.request.startsWith("start_")) {
+                Player player = Players.get(Integer.parseInt(packet.request.substring(6)), players);
+
+                // Check if the player is the host
+                if (!Players.matches(host, player)) {
                     return;
                 }
 
@@ -109,32 +134,28 @@ public class Server extends Listener {
                 response.response = "start";
                 server.sendToAllTCP(response);
 
-                // Send players packet
-                sendPlayers();
-
                 // Send the last card packet
                 Packets.Response cardPacket = new Packets.Response();
                 cardPacket.response = String.format("lastcard_%s", playedDeck.getLast().toString());
                 server.sendToAllTCP(cardPacket);
 
-                // Set server state
-                Server.state = State.Game;
+                // Update players
+                updatePlayers();
 
-                // Set the current turn
+                // Set server state and current turn
+                Server.state = State.Game;
                 currentPlayer = players.getFirst();
             }
-
             else if (packet.request.startsWith("playcard_")) {
-                String[] data = packet.request.split("_");
-                int id = Integer.parseInt(data[1]);
-                Player player = Players.get(id, players);
+                String[] request = packet.request.split("_");
+                Player player = Players.get(Integer.parseInt(request[1]), players);
+                Card card = player.getCards().get(Integer.parseInt(request[2]));
+                Card lastCard = playedDeck.getLast();
 
+                // Check if it is players turn
                 if (!Players.matches(currentPlayer, player)) {
                     return;
                 }
-
-                Card card = player.getCards().get(Integer.parseInt(data[2]));
-                Card lastCard = playedDeck.getLast();
 
                 // Check if the play is valid
                 if (!Cards.isValid(lastCard, card) && !card.getColor().equals(currentColor)) {
@@ -146,47 +167,34 @@ public class Server extends Listener {
                 playedDeck.add(card);
                 player.setPlayedCard(true);
 
-                // Send players packet
-                sendPlayers();
+                // Update players
+                updatePlayers();
 
                 // Send the last card packet
                 Packets.Response cardPacket = new Packets.Response();
                 cardPacket.response = String.format("lastcard_%s", playedDeck.getLast().toString());
                 server.sendToAllTCP(cardPacket);
 
+
                 // Check if the card is special
                 switch (card.getType()) {
-                    case CardType.PlusTwo:
-                        cardsToTake += 2;
-                        break;
-                    case CardType.Skip:
-                        // setCurrentPlayer();
-                        return;
-                    case CardType.Reverse:
-                        reverse = !reverse;
-                        break;
-                    case CardType.ChooseColor:
-                        Packets.Request chooseColorRequest = new Packets.Request();
-                        chooseColorRequest.request = "choosecolor";
-                        server.sendToTCP(player.getId(), chooseColorRequest);
-                        return;
+                    case CardType.PlusTwo: cardAmount += 2; break;
+                    case CardType.Skip: nextTurn(); break;
+                    case CardType.Reverse: reverse = !reverse; break;
+                    case CardType.ChooseColor: sendRequest(player, "choosecolor"); return;
                     case CardType.PlusFour:
-                        cardsToTake += 4;
-
-                        Packets.Request plusFourRequest = new Packets.Request();
-                        plusFourRequest.request = "choosecolor";
-                        server.sendToTCP(player.getId(), plusFourRequest);
+                        cardAmount += 4;
+                        sendRequest(player, "choosecolor");
                         return;
                     default: break;
                 }
 
                 nextTurn();
             }
-
             else if (packet.request.startsWith("takecard_")) {
-                int id = Integer.parseInt(packet.request.substring(9));
-                Player player = Players.get(id, players);
+                Player player = Players.get(Integer.parseInt(packet.request.substring(9)), players);
 
+                // Check if it is players turn
                 if (!Players.matches(currentPlayer, player)) {
                     return;
                 }
@@ -201,23 +209,23 @@ public class Server extends Listener {
                 deck.remove(card);
                 player.setTookCard(true);
 
-                // Send players packet
-                sendPlayers();
+                // Update players
+                updatePlayers();
 
                 if (!Cards.isValid(deck.getLast(), card)) {
                     nextTurn();
                 }
             }
-
             else if (packet.request.startsWith("addbot_")) {
+                Player player = Players.get(Integer.parseInt(packet.request.substring(7)), players);
+
                 // Check if we are in the lobby
                 if (state == State.Game) {
                     return;
                 }
 
                 // Check if the player is the host
-                int id = Integer.parseInt(packet.request.substring(7));
-                if (id != host.getId()) {
+                if (!Players.matches(host, player)) {
                     return;
                 }
 
@@ -232,73 +240,61 @@ public class Server extends Listener {
                 bot.getCards().addAll(cards);
                 players.add(bot);
 
-                // Send players packet
-                sendPlayers();
+                // Update players
+                updatePlayers();
 
                 // Debug
                 Game.log("Adding bot", Game.LogType.Server);
             }
+            else if (packet.request.startsWith("removebot_")) {
+                String[] request = packet.request.split("_");
+                Player player = Players.get(Integer.parseInt(request[1]), players);
+                Player bot = Players.get(Integer.parseInt(request[2]), players);
 
-            else if (packet.request.startsWith("remove_")) {
                 // Check if we are in the lobby
                 if (state == State.Game) {
                     return;
                 }
 
-                String[] data = packet.request.split("_");
-                Player client = Players.get(Integer.parseInt(data[1]), players);
-                Player bot = Players.get(Integer.parseInt(data[2]), players);
-
-                // Check if the ids are valid
-                if (client == null || bot == null) {
-                    return;
-                }
-
                 // Check if the player is the host
-                if (client.getId() != host.getId()) {
+                if (!Players.matches(host, player)) {
                     return;
                 }
+
                 // Check if the player is a bot or a player
                 if (bot instanceof Bot) {
                     players.remove(bot);
-                    sendPlayers();
+                    updatePlayers();
                 }
 
                 // Debug
                 Game.log("Removing bot", Game.LogType.Server);
             }
-
-            else if (packet.request.startsWith("username_")) {
-                String[] data = packet.request.split("_");
-                int id = Integer.parseInt(data[1]);
-                Player player = Players.get(id, players);
-                String username = data[2];
-
-                if (username.equals("null") || player == null) {
-                    return;
-                }
-
-                player.setUsername(username);
-                sendPlayers();
-            }
             else if (packet.request.startsWith("next_")) {
-                int id = Integer.parseInt(packet.request.substring(5));
-                Player player = Players.get(id, players);
+                Player player = Players.get(Integer.parseInt(packet.request.substring(5)), players);
 
+                // Check if its players turn
                 if (!Players.matches(currentPlayer, player)) {
                     return;
                 }
 
+                // Check if the player has played or taken a card
+                if (!player.hasPlayedCard() && !player.hasTakenCard()) {
+                    return;
+                }
+
+                // Skip turn
                 nextTurn();
             }
             else if (packet.request.startsWith("uno_")) {
-                int id = Integer.parseInt(packet.request.substring(5));
-                Player player = Players.get(id, players);
+                Player player = Players.get(Integer.parseInt(packet.request.substring(5)), players);
 
+                // Check if its players turn
                 if (!Players.matches(currentPlayer, player)) {
                     return;
                 }
 
+                // Call uno
                 player.setCalledUno(true);
             }
         }
@@ -307,6 +303,7 @@ public class Server extends Listener {
                 String color = packet.response.substring(6);
                 String type = "";
 
+                // Set the type of card
                 if (playedDeck.getLast().getType().equals(CardType.ChooseColor)) {
                     type = "choosecolor";
                 }
@@ -314,6 +311,7 @@ public class Server extends Listener {
                     type = "plusfour";
                 }
 
+                // Set the color
                 switch (color) {
                     case "red": currentColor = CardColor.Red; break;
                     case "blue": currentColor = CardColor.Blue; break;
@@ -322,10 +320,13 @@ public class Server extends Listener {
                     default: break;
                 }
 
-                Packets.Request requestPacket = new Packets.Request();
-                requestPacket.request = String.format("color_%s_%s", color, type);
-                server.sendToAllTCP(requestPacket);
-                nextTurn();
+                // Send the card to all clients
+                sendRequest(String.format("color_%s_%s", color, type));
+
+                // Go to the next turn if it was a choosecolor card
+                if (type.equals("choosecolor")) {
+                    nextTurn();
+                }
             }
         }
     }
@@ -348,29 +349,42 @@ public class Server extends Listener {
         currentPlayer = Players.getNext(currentIndex, players, reverse);
 
         // Add x cards to the players deck
-        for (int i = 0; i < cardsToTake; i++) {
+        for (int i = 0; i < cardAmount; i++) {
             Card card = deck.getLast();
             currentPlayer.getCards().add(card);
             deck.remove(card);
         }
-        cardsToTake = 0;
+        cardAmount = 0;
 
         // Check if player is a bot
         if (currentPlayer instanceof Bot) {
             Bot bot = (Bot) currentPlayer;
             Card card = bot.chooseCard(playedDeck.getLast());
 
-
+            // Take or play card
             if (card == null) {
-                // Take card
                 Card randomCard = deck.getFirst();
                 bot.getCards().add(randomCard);
                 deck.remove(randomCard);
             }
             else {
-                // Play card
                 bot.getCards().remove(card);
                 playedDeck.add(card);
+
+                if (card.getType() == CardType.ChooseColor || card.getType() == CardType.PlusFour) {
+                    currentColor = CardColor.getRandom();
+                    String type = "";
+
+                    if (card.getType() == CardType.ChooseColor) {
+                        type = "choosecolor";
+                    }
+                    else if (card.getType() == CardType.PlusFour) {
+                        type = "plusfour";
+                    }
+
+                    // Send the card to all clients
+                    sendRequest(String.format("color_%s_%s", currentColor.toString().toLowerCase(), type));
+                }
             }
 
             // Send the last card packet
@@ -381,8 +395,8 @@ public class Server extends Listener {
             nextTurn();
         }
 
-        // Send players packet
-        sendPlayers();
+        // Update players
+        updatePlayers();
     }
 
     private static void createDecks() {
@@ -394,8 +408,20 @@ public class Server extends Listener {
         deck.remove(card);
         playedDeck.add(card);
     }
+    
+    private void sendRequest(String request) {
+        Packets.Request packet = new Packets.Request();
+        packet.request = request;
+        server.sendToAllTCP(packet);
+    }
 
-    private void sendPlayers() {
+    private void sendRequest(Player player, String request) {
+        Packets.Request packet = new Packets.Request();
+        packet.request = request;
+        server.sendToTCP(player.getId(), packet);
+    }
+
+    private void updatePlayers() {
         Packets.GetPlayers packet = new Packets.GetPlayers();
         packet.players = players;
         server.sendToAllTCP(packet);
