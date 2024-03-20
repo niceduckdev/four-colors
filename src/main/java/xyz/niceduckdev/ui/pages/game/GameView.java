@@ -1,5 +1,6 @@
 package xyz.niceduckdev.ui.pages.game;
 
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.layout.BorderPane;
@@ -61,6 +62,7 @@ public class GameView extends View {
         colors.add(new Button("Blue"), 1, 0);
         colors.add(new Button("Yellow"), 0, 1);
         colors.add(new Button("Green"), 1, 1);
+        colors.setAlignment(Pos.CENTER);
     }
 
     @Override

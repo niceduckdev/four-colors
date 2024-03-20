@@ -332,7 +332,7 @@ public class Server extends Listener {
 
     private void nextTurn() {
         // Check if player called Uno
-        if (currentPlayer.getCards().size() == 1 && !currentPlayer.hasCalledUno()) {
+        if (currentPlayer.getCards().size() == 2 && !currentPlayer.hasCalledUno()) {
             ArrayList<Card> cards = deck.getRandomCards(7);
             deck.remove(cards);
             currentPlayer.getCards().addAll(cards);
