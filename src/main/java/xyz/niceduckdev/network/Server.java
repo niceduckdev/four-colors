@@ -177,7 +177,7 @@ public class Server extends Listener {
 
                 // Check if the card is special
                 switch (card.getType()) {
-                    case CardType.PlusTwo: cardAmount += 2; break;
+                    case CardType.PlusTwo: cardAmount += 2; return;
                     case CardType.Skip: nextTurn(); break;
                     case CardType.Reverse: reverse = !reverse; break;
                     case CardType.ChooseColor: sendRequest(player, "choosecolor"); return;
