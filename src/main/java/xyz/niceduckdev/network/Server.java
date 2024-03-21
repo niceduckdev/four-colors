@@ -403,9 +403,19 @@ public class Server extends Listener {
         deck.shuffle();
 
         playedDeck = new Deck();
-        Card card = deck.getLast();
+        Card card = pickCard();
         deck.remove(card);
         playedDeck.add(card);
+    }
+
+    private static Card pickCard() {
+        Card card = deck.getRandomCard();
+
+        while (Cards.isSpecial(card)) {
+            card = deck.getRandomCard();
+        }
+
+        return card;
     }
     
     private void sendRequest(String request) {

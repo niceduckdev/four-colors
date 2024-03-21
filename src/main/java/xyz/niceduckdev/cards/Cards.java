@@ -370,7 +370,7 @@ public class Cards {
 
     public static boolean isSpecial(Card card) {
         return (
-                card.getType() == CardType.ChooseColor || isPlus(card)
+            card.getType() == CardType.ChooseColor || card.getType() == CardType.Reverse || card.getType() == CardType.Skip || isPlus(card)
         );
     }
 }
