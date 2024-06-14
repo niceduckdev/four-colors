@@ -19,6 +19,7 @@ import xyz.niceduckdev.utilities.Vector2;
 
 public class Game extends Application {
     public enum LogType { Client, Server }
+    private static int colorCount = 0;
 
     public static void main(String[] args) {
         Window.addPage("Home", new HomeModel(), new HomeView(), new HomePresenter());
@@ -47,5 +48,13 @@ public class Game extends Application {
         else if (type.equals(LogType.Server)) {
             System.out.printf("Server: %s.\n", message);
         }
+    }
+
+    public static void increaseColorCount() {
+        colorCount += 1;
+    }
+
+    public static int getColorCount() {
+        return colorCount;
     }
 }

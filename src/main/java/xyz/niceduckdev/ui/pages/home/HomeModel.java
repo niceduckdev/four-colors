@@ -1,8 +1,13 @@
 package xyz.niceduckdev.ui.pages.home;
 
+import xyz.niceduckdev.Game;
+import xyz.niceduckdev.save.Save;
+import xyz.niceduckdev.save.SaveData;
 import xyz.niceduckdev.ui.layout.mvp.Model;
 import xyz.niceduckdev.ui.Window;
 import xyz.niceduckdev.network.Server;
+
+import java.io.IOException;
 
 public class HomeModel extends Model {
     public void host() {
@@ -24,5 +29,15 @@ public class HomeModel extends Model {
         }
 
         Window.close();
+    }
+
+    public void fieldChanged() {
+        int colorCount = Game.getColorCount();
+        SaveData data = new SaveData("color count", colorCount);
+        try {
+            Save.saveData(data);
+        } catch (IOException e) {
+            Game.log("Error saving color count");
+        }
     }
 }

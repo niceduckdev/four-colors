@@ -1,5 +1,7 @@
 package xyz.niceduckdev.cards;
 
+import xyz.niceduckdev.Game;
+
 public class Card {
     private CardType type;
     private CardColor color;
@@ -15,6 +17,8 @@ public class Card {
     }
 
     public void setColor(CardColor color) {
+        Game.increaseColorCount();
+
         if (type == CardType.ChooseColor || type == CardType.PlusFour) {
             this.color = CardColor.Black;
             return;

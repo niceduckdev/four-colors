@@ -15,5 +15,11 @@ public class HomePresenter extends Presenter {
         view.getJoinButton().setOnAction(event -> model.join());
         view.getSettingsButton().setOnAction(event -> model.settings());
         view.getQuitButton().setOnAction(event -> model.quit());
+
+        view.getInput().setOnAction(event -> model.fieldChanged());
+    }
+
+    public void fieldChanged() {
+
     }
 }

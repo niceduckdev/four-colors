@@ -1,5 +1,6 @@
 package xyz.niceduckdev.ui.pages.home;
 
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import xyz.niceduckdev.ui.layout.Button;
@@ -14,6 +15,7 @@ public class HomeView extends View {
     private Button settings;
     private Button quit;
     private ImageView hand;
+    private TextField input;
 
     @Override
     public void start() {
@@ -21,6 +23,8 @@ public class HomeView extends View {
         join = new Button();
         settings = new Button();
         quit = new Button();
+
+        input = new TextField();
 
         String path = String.valueOf(getClass().getResource("/images/hand.png"));
         hand = new ImageView(new Image(path));
@@ -56,6 +60,8 @@ public class HomeView extends View {
         row.setSpacing(50);
         row.alignCenter();
         setCenter(row);
+
+        setRight(input);
     }
 
     public Button getHostButton() {
@@ -72,5 +78,9 @@ public class HomeView extends View {
 
     public Button getQuitButton() {
         return quit;
+    }
+
+    public TextField getInput() {
+        return input;
     }
 }
